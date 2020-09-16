@@ -17,6 +17,7 @@
         android:gravity="center"
         android:text="Nothing Yet"
         android:textAlignment="center"
+        android:textColor="@android:color/white"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/etMessage" />
@@ -38,11 +39,13 @@
 
     <Button
         android:id="@+id/btnSend"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="70dp"
+        android:layout_height="23dp"
         android:layout_marginBottom="16dp"
+        android:background="@android:color/holo_green_dark"
         android:onClick="onSend"
         android:text="Send"
+        android:textSize="10sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

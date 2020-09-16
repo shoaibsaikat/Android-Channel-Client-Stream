@@ -32,6 +32,10 @@ public class MainActivity extends WearableActivity {
     private ExecutorService executorService;
     private TextView tvMessage;
     private EditText etMessage;
+
+    private InputStream is;
+    private OutputStream os;
+
     private ChannelClient.Channel connectedChannel;
 
     @Override
@@ -45,18 +49,56 @@ public class MainActivity extends WearableActivity {
 
         executorService = new ThreadPoolExecutor(4, 5, 60L, TimeUnit.SECONDS, new LinkedBlockingDeque<Runnable>());
 
+        // Enables Always-on
+        setAmbientEnabled();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
         Wearable.getChannelClient(getApplicationContext()).registerChannelCallback(new ChannelClient.ChannelCallback() {
             @Override
             public void onChannelOpened(@NonNull ChannelClient.Channel channel) {
                 super.onChannelOpened(channel);
-                Log.e(TAG, "onChannelOpened");
-                addInputListener(channel);
+                Log.d(TAG, "onChannelOpened");
                 connectedChannel = channel;
+                if (channel != null) {
+                    addOutputListener(channel);
+                    addInputListener(channel);
+                } else {
+                    Log.d(TAG, "connectedChannel is null");
+                }
             }
         });
+    }
 
-        // Enables Always-on
-        setAmbientEnabled();
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        try {
+            if (is != null)
+                is.close();
+            if (os != null)
+                os.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        if (connectedChannel != null)
+            Wearable.getChannelClient(getApplicationContext()).close(connectedChannel);
+    }
+
+    private void addOutputListener(ChannelClient.Channel channel) {
+        Task<OutputStream> outputStreamTask = Wearable.getChannelClient(getApplicationContext()).getOutputStream(channel);
+        outputStreamTask.addOnSuccessListener(new OnSuccessListener<OutputStream>() {
+            @Override
+            public void onSuccess(OutputStream outputStream) {
+                Log.d(TAG, "output stream onSuccess");
+                os = outputStream;
+            }
+        });
     }
 
     private void addInputListener(ChannelClient.Channel channel) {
@@ -64,17 +106,17 @@ public class MainActivity extends WearableActivity {
         inputStreamTask.addOnSuccessListener(new OnSuccessListener<InputStream>() {
             @Override
             public void onSuccess(final InputStream inputStream) {
-                Log.d(TAG, "onSuccess");
+                is = inputStream;
                 executorService.execute(new Runnable() {
                     @Override
                     public void run() {
                         try {
                             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                            int nRead;
+                            int read;
                             byte[] data = new byte[1024];
-                            while ((nRead = inputStream.read(data, 0, data.length)) != -1) {
-                                Log.d(TAG, "data length " + nRead);
-                                buffer.write(data, 0, nRead);
+                            while ((read = is.read(data, 0, data.length)) != -1) {
+                                Log.d(TAG, "data length " + read); /** use Log.e to force print, if Log.d does not work */
+                                buffer.write(data, 0, read);
 
                                 buffer.flush();
                                 byte[] byteArray = buffer.toByteArray();
@@ -99,22 +141,16 @@ public class MainActivity extends WearableActivity {
 
     public void onSend(View view) {
         final String text = etMessage.getText().toString();
-        executorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                Task<OutputStream> outputStreamTask = Wearable.getChannelClient(getApplicationContext()).getOutputStream(connectedChannel);
-                outputStreamTask.addOnSuccessListener(new OnSuccessListener<OutputStream>() {
-                    @Override
-                    public void onSuccess(OutputStream outputStream) {
-                        Log.d(TAG, "sending message");
-                        try {
-                            outputStream.write(text.getBytes());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
+        if (os != null) {
+            Log.d(TAG, "sending message");
+            try {
+                os.write(text.getBytes());
+                os.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        });
+        } else {
+            Log.e(TAG, "output stream is null");
+        }
     }
 }
