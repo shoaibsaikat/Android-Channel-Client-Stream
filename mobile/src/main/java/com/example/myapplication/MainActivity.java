@@ -1,5 +1,6 @@
 package com.example.myapplication;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.WorkerThread;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -40,11 +41,6 @@ public class MainActivity extends AppCompatActivity {
     private EditText etMessage;
     private ThreadPoolExecutor executorService;
 
-    private Collection<String> nodes;
-    private ChannelClient.Channel connectedChannel;
-    private InputStream is;
-    private OutputStream os;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         Log.e(TAG, "onCreate");
@@ -60,94 +56,57 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        executorService.execute(new Runnable() {
+        Wearable.getChannelClient(getApplicationContext()).registerChannelCallback(new ChannelClient.ChannelCallback() {
             @Override
-            public void run() {
-                nodes = getNodes();
-                Log.e(TAG, "Nodes: " + nodes.size());
-                for (String node : nodes) {
-                    Task<ChannelClient.Channel> channelTask = Wearable.getChannelClient(getApplicationContext()).openChannel(node, CHANNEL_MSG);
-                    channelTask.addOnSuccessListener(new OnSuccessListener<ChannelClient.Channel>() {
+            public void onChannelOpened(@NonNull ChannelClient.Channel channel) {
+                super.onChannelOpened(channel);
+                Log.d(TAG, "onChannelOpened");
+                if (channel != null) {
+                    Task<InputStream> inputStreamTask = Wearable.getChannelClient(getApplicationContext()).getInputStream(channel);
+                    inputStreamTask.addOnSuccessListener(new OnSuccessListener<InputStream>() {
                         @Override
-                        public void onSuccess(ChannelClient.Channel channel) {
-                            Log.e(TAG, "onSuccess " + channel.getNodeId());
-                            connectedChannel = channel;
-                            if (channel != null) {
-                                addOutputListener(channel);
-                                addInputListener(channel);
-                            } else {
-                                Log.d(TAG, "connectedChannel is null");
-                            }
+                        public void onSuccess(final InputStream inputStream) {
+                            executorService.execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                                        int read;
+                                        byte[] data = new byte[1024];
+                                        while ((read = inputStream.read(data, 0, data.length)) != -1) {
+                                            Log.d(TAG, "data length " + read); /** use Log.e to force print, if Log.d does not work */
+                                            buffer.write(data, 0, read);
+
+                                            buffer.flush();
+                                            byte[] byteArray = buffer.toByteArray();
+
+                                            final String text = new String(byteArray, StandardCharsets.UTF_8);
+                                            Log.d(TAG, "reading: " + text);
+                                            runOnUiThread(new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    tvMessage.setText(text);
+                                                }
+                                            });
+                                        }
+                                        inputStream.close();
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            });
                         }
                     });
+                } else {
+                    Log.d(TAG, "connectedChannel is null");
                 }
             }
         });
     }
 
-    private void addOutputListener(ChannelClient.Channel channel) {
-        Task<OutputStream> outputStreamTask = Wearable.getChannelClient(getApplicationContext()).getOutputStream(channel);
-        outputStreamTask.addOnSuccessListener(new OnSuccessListener<OutputStream>() {
-            @Override
-            public void onSuccess(OutputStream outputStream) {
-                Log.d(TAG, "output stream onSuccess");
-                os = outputStream;
-            }
-        });
-    }
-
-    private void addInputListener(ChannelClient.Channel channel) {
-        Task<InputStream> inputStreamTask = Wearable.getChannelClient(getApplicationContext()).getInputStream(channel);
-        inputStreamTask.addOnSuccessListener(new OnSuccessListener<InputStream>() {
-            @Override
-            public void onSuccess(final InputStream inputStream) {
-                is = inputStream;
-                executorService.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                            int read;
-                            byte[] data = new byte[1024];
-                            while ((read = is.read(data, 0, data.length)) != -1) {
-                                Log.d(TAG, "data length " + read); /** use Log.e to force print, if Log.d does not work */
-                                buffer.write(data, 0, read);
-
-                                buffer.flush();
-                                byte[] byteArray = buffer.toByteArray();
-
-                                final String text = new String(byteArray, StandardCharsets.UTF_8);
-                                Log.d(TAG, "reading: " + text);
-                                runOnUiThread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        tvMessage.setText(text);
-                                    }
-                                });
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                });
-            }
-        });
-    }
-
-    public void onSend(View view) {
-        final String text = etMessage.getText().toString();
-        if (os != null) {
-            Log.e(TAG, "sending message");
-            try {
-                os.write(text.getBytes());
-                os.flush();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else {
-            Log.e(TAG, "output stream is null");
-            Toast.makeText(getApplicationContext(), "Please close the app and clear from recent list", Toast.LENGTH_SHORT).show();
-        }
+    @Override
+    protected void onPause() {
+        super.onPause();
     }
 
     private Collection<String> getNodes() {
@@ -174,20 +133,40 @@ public class MainActivity extends AppCompatActivity {
         return results;
     }
 
-    @Override
-    protected void onPause() {
-        super.onPause();
+    public void onSend(View view) {
+        final String text = etMessage.getText().toString();
 
-        try {
-            if (is != null)
-                is.close();
-            if (os != null)
-                os.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        if (connectedChannel != null)
-            Wearable.getChannelClient(getApplicationContext()).close(connectedChannel);
+        executorService.execute(new Runnable() {
+            @Override
+            public void run() {
+                Collection<String> nodes = getNodes();
+                Log.e(TAG, "Nodes: " + nodes.size());
+                for (String node : nodes) {
+                    Task<ChannelClient.Channel> channelTask = Wearable.getChannelClient(getApplicationContext()).openChannel(node, CHANNEL_MSG);
+                    channelTask.addOnSuccessListener(new OnSuccessListener<ChannelClient.Channel>() {
+                        @Override
+                        public void onSuccess(ChannelClient.Channel channel) {
+                            Log.e(TAG, "onSuccess " + channel.getNodeId());
+                            Task<OutputStream> outputStreamTask = Wearable.getChannelClient(getApplicationContext()).getOutputStream(channel);
+                            outputStreamTask.addOnSuccessListener(new OnSuccessListener<OutputStream>() {
+                                @Override
+                                public void onSuccess(OutputStream outputStream) {
+                                    Log.d(TAG, "output stream onSuccess");
+                                    try {
+                                        outputStream.write(text.getBytes());
+                                        outputStream.flush();
+                                        outputStream.close();
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    } finally {
+                                        Wearable.getChannelClient(getApplicationContext()).close(channel);
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        });
     }
 }
