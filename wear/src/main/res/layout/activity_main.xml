@@ -13,34 +13,37 @@
         android:id="@+id/tvMessage"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
+        android:layout_marginTop="12dp"
         android:gravity="center"
         android:text="Nothing Yet"
         android:textAlignment="center"
         android:textColor="@android:color/white"
+        android:textSize="10sp"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/etMessage" />
 
     <EditText
         android:id="@+id/etMessage"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
+        android:layout_width="185dp"
+        android:layout_height="31dp"
         android:layout_marginStart="20dp"
-        android:layout_marginTop="48dp"
+        android:layout_marginTop="96dp"
         android:layout_marginEnd="20dp"
         android:ems="10"
         android:hint="Enter something"
         android:inputType="textPersonName"
+        android:textSize="10sp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
         android:id="@+id/btnSend"
-        android:layout_width="70dp"
-        android:layout_height="23dp"
+        android:layout_width="56dp"
+        android:layout_height="18dp"
         android:layout_marginBottom="16dp"
         android:background="@android:color/holo_green_dark"
         android:onClick="onSend"
@@ -48,5 +51,9 @@
         android:textSize="10sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintHorizontal_bias="0.496"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tvMessage"
+        app:layout_constraintVertical_bias="1.0" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
