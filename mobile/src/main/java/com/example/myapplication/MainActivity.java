@@ -52,15 +52,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "CUSTOM_TAG";
     private static final String CHANNEL_MSG = "com.example.android.wearable.datalayer.channelmessage";
 
-    private static final int REQUEST_IMAGE_CAPTURE = 1;
-
-    private boolean cameraSupported;
-
     private TextView tvMessage;
     private EditText etMessage;
-//    private ImageView ivThumbView;
-//    private Bitmap imageBitmap;
-//    private Button btnTakePhoto;
 
     private ThreadPoolExecutor executorService;
 
@@ -70,30 +63,15 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        cameraSupported = getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA);
-
         tvMessage = findViewById(R.id.tvMessage);
         etMessage = findViewById(R.id.etMessage);
-//        ivThumbView = findViewById(R.id.imageView);
-//        btnTakePhoto = findViewById(R.id.btnOpenCamera);
-
-        executorService = new ThreadPoolExecutor(4, 5, 60L, TimeUnit.SECONDS, new LinkedBlockingDeque<Runnable>());
-
-//        ActivityCompat.requestPermissions(
-//                MainActivity.this,
-//                new String[] {
-//                        Manifest.permission.READ_EXTERNAL_STORAGE,
-//                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-//                },
-//                1
-//        );
     }
 
     @Override
     protected void onResume() {
         super.onResume();
 
-//        btnTakePhoto.setEnabled(cameraSupported);
+        executorService = new ThreadPoolExecutor(4, 5, 60L, TimeUnit.SECONDS, new LinkedBlockingDeque<Runnable>());
 
         Wearable.getChannelClient(getApplicationContext()).registerChannelCallback(new ChannelClient.ChannelCallback() {
             @Override
@@ -109,6 +87,7 @@ public class MainActivity extends AppCompatActivity {
                                 @Override
                                 public void run() {
                                     try {
+                                        String text = "";
                                         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                                         int read;
                                         byte[] data = new byte[1024];
@@ -119,18 +98,21 @@ public class MainActivity extends AppCompatActivity {
                                             buffer.flush();
                                             byte[] byteArray = buffer.toByteArray();
 
-                                            final String text = new String(byteArray, StandardCharsets.UTF_8);
-                                            LOGD(TAG, "reading: " + text);
-                                            runOnUiThread(new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    tvMessage.setText(text);
-                                                }
-                                            });
+                                            text += new String(byteArray, StandardCharsets.UTF_8);
                                         }
+                                        LOGD(TAG, "reading: " + text);
+                                        String finalText = text;
+                                        runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+                                                tvMessage.setText(finalText);
+                                            }
+                                        });
                                         inputStream.close();
                                     } catch (IOException e) {
                                         e.printStackTrace();
+                                    } finally {
+                                        Wearable.getChannelClient(getApplicationContext()).close(channel);
                                     }
                                 }
                             });
@@ -141,11 +123,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
     }
 
     private Collection<String> getNodes() {
@@ -170,28 +147,6 @@ public class MainActivity extends AppCompatActivity {
 
         return results;
     }
-
-//    @Override
-//    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-//        super.onActivityResult(requestCode, resultCode, data);
-//
-//        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-//            Bundle extras = data.getExtras();
-//            imageBitmap = (Bitmap) extras.get("data");
-//            ivThumbView.setImageBitmap(imageBitmap);
-//        }
-//    }
-
-//    /**
-//     * Dispatches an {@link android.content.Intent} to take a photo. Result will be returned back in
-//     * onActivityResult().
-//     */
-//    public void onTakePhotoClick(View view) {
-//        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-//        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-//            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-//        }
-//    }
 
     /** As simple wrapper around Log.d */
     private static void LOGD(final String tag, String message) {
@@ -225,8 +180,6 @@ public class MainActivity extends AppCompatActivity {
                                         outputStream.close();
                                     } catch (IOException e) {
                                         e.printStackTrace();
-                                    } finally {
-                                        Wearable.getChannelClient(getApplicationContext()).close(channel);
                                     }
                                 }
                             });
@@ -236,54 +189,4 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-
-//    public void onImageSend(View view) {
-//        final String text = etMessage.getText().toString();
-//
-//        executorService.execute(new Runnable() {
-//            @Override
-//            public void run() {
-//                Collection<String> nodes = getNodes();
-//                LOGD(TAG, "Nodes: " + nodes.size());
-//                for (String node : nodes) {
-//                    Task<ChannelClient.Channel> channelTask = Wearable.getChannelClient(getApplicationContext()).openChannel(node, CHANNEL_MSG);
-//                    channelTask.addOnSuccessListener(new OnSuccessListener<ChannelClient.Channel>() {
-//                        @Override
-//                        public void onSuccess(ChannelClient.Channel channel) {
-//                            LOGD(TAG, "onSuccess " + channel.getNodeId());
-//
-//                            try {
-//                                File textFile = new File(Environment.getExternalStorageDirectory(), "given_message.txt");
-//                                Files.deleteIfExists(Paths.get(Uri.fromFile(textFile).getPath()));
-//
-//                                OutputStream out = new FileOutputStream(textFile);
-//                                out.write(text.getBytes());
-//                                out.flush();
-//                                out.close();
-//
-//                                Wearable.getChannelClient(getApplicationContext()).sendFile(channel, Uri.fromFile(textFile));
-//                            } catch (IOException e) {
-//                                e.printStackTrace();
-//                            }
-
-//                            try {
-//                                File imageFile = new File(Environment.getExternalStorageDirectory(), "taken_image.png");
-//                                Files.deleteIfExists(Paths.get(Uri.fromFile(imageFile).getPath()));
-//
-//                                FileOutputStream out = new FileOutputStream(imageFile);
-//                                imageBitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
-//                                /** PNG is a lossless format, the compression factor (100) is ignored */
-//                                out.flush();
-//                                out.close();
-//
-//                                Wearable.getChannelClient(getApplicationContext()).sendFile(channel, Uri.fromFile(imageFile));
-//                            } catch (IOException e) {
-//                                e.printStackTrace();
-//                            }
-//                        }
-//                    });
-//                }
-//            }
-//        });
-//    }
 }
