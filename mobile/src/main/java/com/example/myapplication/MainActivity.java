@@ -125,6 +125,13 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        executorService.shutdown();
+    }
+
     private Collection<String> getNodes() {
         HashSet<String> results = new HashSet<>();
         Task<List<Node>> nodeListTask = Wearable.getNodeClient(getApplicationContext()).getConnectedNodes();

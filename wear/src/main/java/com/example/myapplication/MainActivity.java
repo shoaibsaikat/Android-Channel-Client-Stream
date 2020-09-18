@@ -111,6 +111,13 @@ public class MainActivity extends WearableActivity {
         });
     }
 
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        executorService.shutdown();
+    }
+
     private Collection<String> getNodes() {
         HashSet<String> results = new HashSet<>();
 
