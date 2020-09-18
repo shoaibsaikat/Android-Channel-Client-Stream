@@ -65,13 +65,13 @@ public class MainActivity extends AppCompatActivity {
 
         tvMessage = findViewById(R.id.tvMessage);
         etMessage = findViewById(R.id.etMessage);
+
+        executorService = new ThreadPoolExecutor(4, 5, 60L, TimeUnit.SECONDS, new LinkedBlockingDeque<Runnable>());
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-
-        executorService = new ThreadPoolExecutor(4, 5, 60L, TimeUnit.SECONDS, new LinkedBlockingDeque<Runnable>());
 
         Wearable.getChannelClient(getApplicationContext()).registerChannelCallback(new ChannelClient.ChannelCallback() {
             @Override
@@ -126,8 +126,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
+    protected void onDestroy() {
+        super.onDestroy();
 
         executorService.shutdown();
     }
