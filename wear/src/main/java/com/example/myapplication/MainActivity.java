@@ -147,13 +147,13 @@ public class MainActivity extends WearableActivity {
             @Override
             public void run() {
                 Collection<String> nodes = getNodes();
-                Log.e(TAG, "Nodes: " + nodes.size());
+                Log.d(TAG, "Nodes: " + nodes.size());
                 for (String node : nodes) {
                     Task<ChannelClient.Channel> channelTask = Wearable.getChannelClient(getApplicationContext()).openChannel(node, CHANNEL_MSG);
                     channelTask.addOnSuccessListener(new OnSuccessListener<ChannelClient.Channel>() {
                         @Override
                         public void onSuccess(ChannelClient.Channel channel) {
-                            Log.e(TAG, "onSuccess " + channel.getNodeId());
+                            Log.d(TAG, "onSuccess " + channel.getNodeId());
                             Task<OutputStream> outputStreamTask = Wearable.getChannelClient(getApplicationContext()).getOutputStream(channel);
                             outputStreamTask.addOnSuccessListener(new OnSuccessListener<OutputStream>() {
                                 @Override
